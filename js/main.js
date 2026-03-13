@@ -76,6 +76,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('[data-reveal]').forEach(el => revealObs.observe(el));
 
+  // ---------- GALLERY CAROUSEL ----------
+  const carousel = document.getElementById('gallery-carousel');
+  if (carousel) {
+    const track  = carousel.querySelector('.carousel__track');
+    const slides = [...carousel.querySelectorAll('.carousel__slide')];
+    const dots   = [...carousel.querySelectorAll('.carousel__dot')];
+    const total  = slides.length;
+    let current  = 0;
+    let timer;
+
+    const goTo = (idx) => {
+      dots[current].classList.remove('active');
+      current = ((idx % total) + total) % total;
+      track.style.transform = `translateX(-${current * 100}%)`;
+      dots[current].classList.add('active');
+    };
+
+    const startAuto = () => { timer = setInterval(() => goTo(current + 1), 3000); };
+    const stopAuto  = () => clearInterval(timer);
+
+    carousel.querySelector('.carousel__btn--prev').addEventListener('click', () => { stopAuto(); goTo(current - 1); startAuto(); });
+    carousel.querySelector('.carousel__btn--next').addEventListener('click', () => { stopAuto(); goTo(current + 1); startAuto(); });
+    dots.forEach((dot, i) => dot.addEventListener('click', () => { stopAuto(); goTo(i); startAuto(); }));
+
+    carousel.addEventListener('mouseenter', stopAuto);
+    carousel.addEventListener('mouseleave', startAuto);
+
+    goTo(0);
+    startAuto();
+  }
+
   // ---------- SMOOTH SCROLL ----------
   document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', (e) => {
