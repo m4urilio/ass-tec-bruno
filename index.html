@@ -620,5 +620,151 @@
   </a>
 
   <script src="js/main.js" type="module"></script>
+
+  <!-- ══════════════════════════════════════════════════════════
+       Universo Digital — Rastreamento Avançado de Leads
+       Cliente: VisionService
+       ══════════════════════════════════════════════════════════ -->
+
+  <!-- PARTE 1: Meta Pixel + GTM (inicialização) -->
+  <script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','1547860203529603');fbq('track','PageView');</script>
+  <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1547860203529603&ev=PageView&noscript=1" alt=""></noscript>
+
+  <!-- PARTE 2: Rastreamento de leads (WhatsApp + Formulários) -->
+  <script>
+  (function(){
+    var SLUG   = 'visionservice';
+    var PIXEL  = '1547860203529603';
+    var SECRET = '1bd781a4e2944ce6929e1ee84cdfec3e';
+    var SERVER = 'https://ud-rastreamento-production.up.railway.app';
+    var _fired = false;
+
+    function getCookie(n){var m=document.cookie.match(new RegExp('(^| )'+n+'=([^;]+)'));return m?m[2]:'';}
+    function setCookie(n,v,days){var e=new Date();e.setTime(e.getTime()+days*864e5);document.cookie=n+'='+v+';expires='+e.toUTCString()+';path=/;SameSite=Lax';}
+    function getParam(p){return new URLSearchParams(window.location.search).get(p)||'';}
+    function getEventId(){
+      var k='ud_eid_'+SLUG,e=sessionStorage.getItem(k);
+      if(!e){e=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);sessionStorage.setItem(k,e);}
+      return e;
+    }
+    (function(){
+      var fbclid=getParam('fbclid');
+      if(fbclid && !getCookie('_fbc')){setCookie('_fbc','fb.1.'+Date.now()+'.'+fbclid,90);}
+      if(!getCookie('_fbp')){var rnd=Math.floor(Math.random()*2147483647);setCookie('_fbp','fb.1.'+Date.now()+'.'+rnd,90);}
+    })();
+    function extractForm(form){
+      var d={nome:'',telefone:'',email:''};
+      form.querySelectorAll('input,textarea,select').forEach(function(f){
+        var n=(f.name||f.id||f.placeholder||'').toLowerCase(),v=(f.value||'').trim();
+        if(!v)return;
+        if(/nome|name|first|sobrenome/.test(n))d.nome=d.nome||v;
+        if(/tel|phone|celular|whatsapp|fone|cel/.test(n))d.telefone=d.telefone||v;
+        if(/email|e-mail/.test(n))d.email=d.email||v;
+      });
+      return d;
+    }
+    function fire(nome,telefone,email){
+      if(_fired)return; _fired=true;
+      var eid=getEventId();
+      var fbp=getCookie('_fbp');
+      var fbc=getCookie('_fbc')||(getParam('fbclid')?'fb.1.'+Date.now()+'.'+getParam('fbclid'):'');
+      if(window.fbq)fbq('track','Lead',{},{eventID:eid});
+      var payload={
+        client_slug:SLUG,webhook_secret:SECRET,
+        nome:nome||'',telefone:telefone||'',email:email||'',
+        event_id:eid,fbp:fbp,fbc:fbc,
+        utm_source:getParam('utm_source'),utm_medium:getParam('utm_medium'),
+        utm_campaign:getParam('utm_campaign'),utm_content:getParam('utm_content'),
+        utm_term:getParam('utm_term'),gclid:getParam('gclid'),
+        device:/Mobi|Android/i.test(navigator.userAgent)?'mobile':'desktop',
+        page_url:window.location.href,
+        user_agent:navigator.userAgent||'',
+        language:navigator.language||'',
+        timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'',
+        screen:(screen.width||0)+'x'+(screen.height||0)
+      };
+      try{fetch(SERVER+'/rastr/webhook-lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true});}catch(e){}
+    }
+    var _waUrl='';
+    function _udOpenWhatsApp(url){
+      try{var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();document.body.removeChild(a);}
+      catch(ex){window.location.href=url;}
+    }
+    document.addEventListener('click',function(e){
+      var el=e.target.closest('a[href]')||e.target.closest('[data-href]');
+      if(!el)return;
+      var h=el.getAttribute('href')||el.getAttribute('data-href')||'';
+      if(/wa\.me|whatsapp\.com|whatsapp:/.test(h)){
+        e.preventDefault();e.stopPropagation();
+        _waUrl=h;
+        _udCreatePopup();
+        var ov=document.getElementById('ud-wa-overlay');
+        if(ov){ov.style.display='flex';var ni=document.getElementById('ud-wa-nome');if(ni)ni.focus();}
+        else{_udOpenWhatsApp(h);}
+      }
+    },true);
+    document.addEventListener('submit',function(e){
+      var d=extractForm(e.target);fire(d.nome,d.telefone,d.email);
+    },true);
+    function hookElementor(){
+      if(!window.jQuery)return;
+      jQuery(document).on('elementor_pro/forms/submit_success',function(ev,res){
+        var fields=res&&res.data&&res.data.fields?res.data.fields:(res&&res.fields?res.fields:[]);
+        var n='',t='',em='';
+        fields.forEach(function(f){
+          var id=(f.id||'').toLowerCase();
+          if(/nome|name/.test(id))n=n||f.value;
+          if(/tel|phone|celular|whatsapp/.test(id))t=t||f.value;
+          if(/email/.test(id))em=em||f.value;
+        });
+        fire(n,t,em);
+      });
+    }
+    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',hookElementor);}
+    else{hookElementor();}
+    function _udCreatePopup(){
+      if(document.getElementById('ud-wa-overlay'))return;
+      var d=document.createElement('div');d.id='ud-wa-overlay';
+      d.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:99999;align-items:center;justify-content:center;padding:20px';
+      d.innerHTML='<div style="background:#13161B;border:1px solid #2a2f38;border-radius:16px;padding:32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+        +'<div style="font-size:16px;font-weight:600;color:#eee;margin-bottom:6px">Antes de continuar</div>'
+        +'<div style="font-size:13px;color:#9ca3af;margin-bottom:24px">Preencha seus dados para falar com a gente.</div>'
+        +'<input id="ud-wa-nome" type="text" placeholder="Seu nome completo" autocomplete="name" style="width:100%;padding:12px 14px;background:#1a1d23;border:1px solid #2a2f38;border-radius:8px;color:#eee;font-size:14px;margin-bottom:12px;outline:none;font-family:inherit;box-sizing:border-box">'
+        +'<input id="ud-wa-tel" type="tel" placeholder="WhatsApp com DDD" autocomplete="tel" style="width:100%;padding:12px 14px;background:#1a1d23;border:1px solid #2a2f38;border-radius:8px;color:#eee;font-size:14px;margin-bottom:20px;outline:none;font-family:inherit;box-sizing:border-box">'
+        +'<button id="ud-wa-send" disabled style="width:100%;padding:14px;background:#25D366;border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:not-allowed;opacity:0.45;transition:opacity .2s,cursor .2s">Falar no WhatsApp</button>'
+        +'<button id="ud-wa-close" style="width:100%;padding:10px;background:transparent;border:none;color:#6b7280;font-size:12px;cursor:pointer;margin-top:8px">Cancelar</button>'
+        +'</div>';
+      document.body.appendChild(d);
+      function _udValidatePopup(){
+        var n=document.getElementById('ud-wa-nome').value.trim();
+        var t=document.getElementById('ud-wa-tel').value.replace(/\D/g,'');
+        var ok=n.length>=2 && t.length>=10;
+        var btn=document.getElementById('ud-wa-send');
+        btn.disabled=!ok;btn.style.opacity=ok?'1':'0.45';btn.style.cursor=ok?'pointer':'not-allowed';
+      }
+      document.getElementById('ud-wa-send').addEventListener('click',function(){
+        var n=document.getElementById('ud-wa-nome').value.trim(),t=document.getElementById('ud-wa-tel').value.trim();
+        var tDigits=t.replace(/\D/g,'');
+        if(n.length<2){document.getElementById('ud-wa-nome').style.borderColor='#EF4444';return;}
+        if(tDigits.length<10){document.getElementById('ud-wa-tel').style.borderColor='#EF4444';return;}
+        fire(n,t,'');d.style.display='none';_udOpenWhatsApp(_waUrl);
+      });
+      document.getElementById('ud-wa-close').addEventListener('click',function(){d.style.display='none';});
+      d.addEventListener('click',function(e){if(e.target===d)d.style.display='none';});
+      document.getElementById('ud-wa-tel').addEventListener('input',function(){
+        var v=this.value.replace(/\D/g,'').slice(0,11);
+        if(v.length>6)v='('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);
+        else if(v.length>2)v='('+v.slice(0,2)+') '+v.slice(2);
+        else if(v.length>0)v='('+v;
+        this.value=v;this.style.borderColor='#2a2f38';_udValidatePopup();
+      });
+      document.getElementById('ud-wa-nome').addEventListener('input',function(){this.style.borderColor='#2a2f38';_udValidatePopup();});
+    }
+    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_udCreatePopup);}
+    else{_udCreatePopup();}
+  })();
+  </script>
+  <!-- Fim do código Universo Digital -->
+
 </body>
 </html>
